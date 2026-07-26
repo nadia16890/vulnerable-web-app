@@ -79,6 +79,45 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+          # Software Composition Analysis
+      - name: Install Node.js dependencies
+        id: npm-install
+        continue-on-error: true
+        run: npm install
+
+      - name: Audit Node.js dependencies
+        id: npm-audit
+        continue-on-error: true
+        run: |
+          npm audit \
+            --json \
+            > npm-audit-results.json
+
+      - name: Report npm audit result
+        if: always()
+        run: |
+          echo "npm install outcome: ${{ steps.npm-install.outcome }}"
+          echo "npm audit outcome: ${{ steps.npm-audit.outcome }}"
+
+          if [ "${{ steps.npm-audit.outcome }}" = "failure" ]; then
+            echo "::warning::npm audit detected vulnerable dependencies or encountered an error."
+          fi
+
+          if [ -f npm-audit-results.json ]; then
+            echo "npm audit report generated successfully."
+          else
+            echo "::warning::npm audit did not generate a report."
+          fi
+
+      - name: Upload npm audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: npm-audit-results.json
+          if-no-files-found: warn
+          retention-days: 7
+          
       # Docker build
       - name: Show Docker version
         run: docker version
