@@ -202,6 +202,14 @@ jobs:
               docker push \
                 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest     
 
+      - name: Trigger Render deployment
+        if: github.event_name != 'pull_request'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+              curl --fail-with-body \
+                    --request POST \
+                    "$RENDER_DEPLOY_HOOK_URL"
 
       - name: Verify image was created
         run: docker image inspect vulnerable-web-app:${{ github.sha }}
