@@ -23,6 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Secret scanning
       - name: Scan repository for secrets with Gitleaks
         id: gitleaks
         continue-on-error: true
@@ -39,6 +40,46 @@ jobs:
             echo "::warning::Gitleaks detected possible secrets. Review the scan results."
           fi
 
+      # SAST
+      - name: Run Semgrep SAST scan
+        id: semgrep
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -w /src \
+            semgrep/semgrep \
+            semgrep scan \
+              --config auto \
+              --json \
+              --output semgrep-results.json \
+              .
+
+      - name: Report Semgrep result
+        if: always()
+        run: |
+          echo "Semgrep outcome: ${{ steps.semgrep.outcome }}"
+
+          if [ "${{ steps.semgrep.outcome }}" = "failure" ]; then
+            echo "::warning::Semgrep detected findings or encountered an execution problem."
+          fi
+
+          if [ -f semgrep-results.json ]; then
+            echo "Semgrep result file generated successfully."
+          else
+            echo "::warning::Semgrep did not generate semgrep-results.json."
+          fi
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # Docker build
       - name: Show Docker version
         run: docker version
 
