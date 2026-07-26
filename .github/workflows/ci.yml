@@ -1,4 +1,4 @@
-name: CI - Docker Build
+name: CI - DevSecOps
 
 on:
   push:
@@ -13,13 +13,31 @@ permissions:
   contents: read
 
 jobs:
-  docker-build:
-    name: Build Docker image
+  security-and-build:
+    name: Security scans and Docker build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for secrets with Gitleaks
+        id: gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report Gitleaks result
+        if: always()
+        run: |
+          echo "Gitleaks outcome: ${{ steps.gitleaks.outcome }}"
+
+          if [ "${{ steps.gitleaks.outcome }}" = "failure" ]; then
+            echo "::warning::Gitleaks detected possible secrets. Review the scan results."
+          fi
 
       - name: Show Docker version
         run: docker version
